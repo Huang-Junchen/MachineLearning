@@ -7,6 +7,7 @@
 from math import log
 import operator
 import matplotlib.pyplot as plt
+import pickle
 
 '''定义文本框和箭头样式，用于绘制树形图'''
 decisionNode = dict(boxstyle="sawtooth", fc="0.8")
@@ -131,13 +132,13 @@ def createTree(dataSet, labels):
     bestFeat = chooseBestFeatureToSplit(dataSet)
     bestFeatLabel = labels[bestFeat]
     myTree = {bestFeatLabel:{}} # Python用字典来实现树
-    del(labels[bestFeat])
     featValues = [example[bestFeat] for example in dataSet]
     uniqueVals = set(featValues)
 
     for value in uniqueVals:
         '''因为python中列表在函数中可被修改，因此每次需要创建新子标签列表'''
         subLabels = labels[:]
+        del(subLabels[bestFeat])
         myTree[bestFeatLabel][value] = createTree(splitDataSet\
             (dataSet, bestFeat, value), subLabels)
     
@@ -224,12 +225,58 @@ def createPlot(inTree):
     plotTree.xOff = -0.5/plotTree.totalW; plotTree.yOff = 1.0
     plotTree(inTree, (0.5, 1.0), '')
     plt.show()
+
+def classify(inputTree, featLabels, testVec):
+    """
+    @description: 使用决策树的分类函数
+    @param      : inputTree, featLabel, testVec
+    @Returns    : classLabel
+    """
     
+    firstStr = list(inputTree.keys())[0]
+    secondDict = inputTree[firstStr]
+    featIndex = featLabels.index(firstStr)
+    for key in secondDict.keys():
+        if testVec[featIndex] == key:
+            if type(secondDict[key]).__name__ == 'dict':
+                classLabel = classify(secondDict[key], featLabels, testVec)
+            else: classLabel = secondDict[key]
     
+    return classLabel
+
+def storeTree(inputTree, filename):
+    """
+    @description: 存储决策树
+    @param      : inputTree filename
+    @Returns    : None
+    """
+
+    fw = open(filename, 'w')
+    pickle.dump(inputTree, fw)
+    fw.close
+
+def grabTree(filename):
+    """
+    @description: 读取存储的决策树
+    @param      : filename
+    @Returns    : 决策树
+    """
+    
+    fr = open(filename)
+    return pickle.load(fr)
+
 if __name__ == '__main__':
-    myDat, labels = createDataSet()
-    myTree = createTree(myDat, labels)
-    print(myTree)
-    myTree['no surfacing'][3]= 'maybe'
-    createPlot(myTree)
+    '''使用决策树预测隐形眼镜类型'''
+    #myDat, labels = createDataSet()
+    #myTree = createTree(myDat, labels)
+    #print(myTree)
+    #createPlot(myTree)
+    #print(classify(myTree, labels, [1, 0]))
+    #print(classify(myTree, labels, [1, 1]))
+    fr = open('lenses.txt')
+    lenses = [inst.strip().split('\t') for inst in fr.readlines()]
+    lensesLabels = ['age', 'prescript', 'astigmatic', 'tearRate']
+    lensesTree = createTree(lenses, lensesLabels)
+    print(lensesTree)
+    createPlot(lensesTree)
 
